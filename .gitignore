@@ -1,0 +1,9 @@
+debug_outs/*.out
+ref_outs/*.out
+student_outs/*.out
+traces/*.trace
+
+*.o
+*.d
+
+compress_sim
