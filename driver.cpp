@@ -4,6 +4,10 @@
 
 #include "compress_alg.hpp"
 
+static std::string channel_to_str[] = {
+    "Red", "Green", "Blue", "Alpha"
+};
+
 static std::string bool_to_string(bool value) {
     return value ? "Yes" : "No";
 }
@@ -12,6 +16,13 @@ void print_compress_result(std::string name, const compress_result_t* result) {
     printf("Compressed pattern: %s\n", name.c_str());
     printf("\tDid Compression: %s\n", bool_to_string(result->did_compression).c_str());
     printf("\tCompression Ratio: %.2f\n", result->compress_ratio);
+    for (size_t c = 0; c < 4; c++) {
+        printf("\t%s Channel\n", channel_to_str[c].c_str());
+        printf("\t\tSkip Bit: %d\n", result->skip[c]);
+        printf("\t\t Prediction: %d\n", result->prediction[c]);
+        printf("\t\t NumBits: %d\n", result->numBits[c]);
+    }
+    printf("\n");
 }
 
 int main() {
