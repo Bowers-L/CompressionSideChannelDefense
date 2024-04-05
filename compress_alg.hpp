@@ -1,13 +1,21 @@
 #include <inttypes.h>
 #include <stddef.h>
 
+#define FRAME_SIZE 1024
+#define WINDOW_SIZE 32
+
 typedef struct {
-    uint8_t pixels[32][4];
+    uint8_t pixels[WINDOW_SIZE][4];
 } pixel_window_t;
+
+typedef struct {
+    uint8_t pixels[FRAME_SIZE][4];
+} frame_t;
 
 typedef struct {
     bool did_compression;
     double compress_ratio;
+    double llc_time;
 
     //Compressed Pixels
     //Total Header Bits: (1+8+3) * 4 = 48
@@ -24,4 +32,5 @@ typedef struct {
     //uint8_t pixels[32][4];
 } compress_result_t;
 
+extern void init_render_time_dist();
 extern compress_result_t compress(pixel_window_t* window);

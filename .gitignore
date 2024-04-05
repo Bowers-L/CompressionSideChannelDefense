@@ -2,6 +2,7 @@
 # ref_outs/*.out
 # student_outs/*.out
 traces/*.trace
+outputs/*.out
 
 *.o
 *.d

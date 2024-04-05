@@ -1,6 +1,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include "time.h"
+#include "attacker.hpp"
 
 #include "compress_alg.hpp"
 
@@ -16,6 +17,7 @@ void print_compress_result(std::string name, const compress_result_t* result) {
     printf("Compressed pattern: %s\n", name.c_str());
     printf("\tDid Compression: %s\n", bool_to_string(result->did_compression).c_str());
     printf("\tCompression Ratio: %.2f\n", result->compress_ratio);
+    printf("\tLLC Time: %.2f\n", result->llc_time);
     for (size_t c = 0; c < 4; c++) {
         printf("\t%s Channel\n", channel_to_str[c].c_str());
         printf("\t\tSkip Bit: %d\n", result->skip[c]);
@@ -25,14 +27,34 @@ void print_compress_result(std::string name, const compress_result_t* result) {
     printf("\n");
 }
 
+void set_pixel(uint8_t* p, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    p[0] = r;
+    p[1] = g;
+    p[2] = b;
+    p[3] = a;
+}
+
+frame_t get_new_frame() {
+    frame_t frame;
+    for (size_t i = 0; i < FRAME_SIZE*FRAME_SIZE; i++) {
+        if (i % 2 == 0) {
+            set_pixel(frame.pixels[i], 0, 0, 0, 0);
+        } else {
+            set_pixel(frame.pixels[i], 1, 1, 1, 1);
+        }
+    }
+
+    return frame;
+}
+
 int main() {
     pixel_window_t black;
     pixel_window_t random;
     srand(time(NULL));
     
     //Populate pixels
+    //frame_t frame = get_new_frame();
 
-    //Black Pattern
     for (size_t i = 0; i < 32; i++) {
         for (size_t c = 0; c < 4; c++) {
             black.pixels[i][c] = 0;

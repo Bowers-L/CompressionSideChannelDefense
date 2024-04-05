@@ -1,0 +1,1 @@
+./compress_sim > outputs/results.out

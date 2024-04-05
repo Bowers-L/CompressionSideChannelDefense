@@ -1,8 +1,18 @@
 #include "compress_alg.hpp"
 
 #include <iostream>
+#include <random>
 
 #define COMPRESS_THRESHOLD 14
+
+#define LLC_TIME_MEAN_COMPRESSED 16
+#define LLC_TIME_MEAN_UNCOMPRESSED 18
+
+std::normal_distribution<double> times_compressed(LLC_TIME_MEAN_COMPRESSED);
+std::normal_distribution<double> times_uncompressed(LLC_TIME_MEAN_UNCOMPRESSED);
+
+std::random_device rd{};
+std::mt19937 gen{rd()};
 
 //Returns -1 if value is 0, otherwise most significant bit position.
 static int8_t get_msb_pos(uint8_t value) {
@@ -15,6 +25,14 @@ static int8_t get_msb_pos(uint8_t value) {
     return msb_pos-1;
 }
 
+static double get_render_time_ms(bool is_compressed) {
+    if (is_compressed) {
+        return times_compressed(gen);
+    } else {
+        return times_uncompressed(gen);
+    }
+}
+
 //Returns if compression was applied to 
 compress_result_t compress(pixel_window_t* window) {
     compress_result_t result;
@@ -22,7 +40,7 @@ compress_result_t compress(pixel_window_t* window) {
     //Get Predictions
     uint8_t min[] = { 255, 255, 255, 255};
     uint8_t max[] = { 0, 0, 0, 0};
-    for (size_t i = 0; i < 32; i++) {
+    for (size_t i = 0; i < WINDOW_SIZE; i++) {
         //printf("Pixel: (%d, %d, %d, %d)\n", window->pixels[i][0], window->pixels[i][1], window->pixels[i][2], window->pixels[i][3]);
         for (size_t c = 0; c < 4; c++) {
             if (window->pixels[i][c] < min[c]) {
@@ -71,6 +89,8 @@ compress_result_t compress(pixel_window_t* window) {
         result.did_compression = false;
         result.compress_ratio = 1.0;
     }
+    result.llc_time = get_render_time_ms(result.did_compression);
+
 
     //This is mostly for testing, the most important metric is whether the compression
     //was performed or not.
@@ -80,6 +100,5 @@ compress_result_t compress(pixel_window_t* window) {
         result.prediction[c] = min[c];
         result.numBits[c] = l[c]; //Might be edge case with l[c] = 0 when diff is 1.
     }
-    
     return result;
 }
