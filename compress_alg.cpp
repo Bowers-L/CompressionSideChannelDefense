@@ -25,11 +25,11 @@ static int8_t get_msb_pos(uint8_t value) {
     return msb_pos-1;
 }
 
-static double get_render_time_ms(bool is_compressed) {
+static double get_llc_time_ms(bool is_compressed) {
     if (is_compressed) {
-        return times_compressed(gen);
+        return times_compressed(gen) * (WINDOW_SIZE) / (FRAME_SIZE);
     } else {
-        return times_uncompressed(gen);
+        return times_uncompressed(gen) * (WINDOW_SIZE) / (FRAME_SIZE);
     }
 }
 
@@ -42,7 +42,7 @@ compress_result_t compress(pixel_window_t* window) {
     uint8_t max[] = { 0, 0, 0, 0};
     for (size_t i = 0; i < WINDOW_SIZE; i++) {
         //printf("Pixel: (%d, %d, %d, %d)\n", window->pixels[i][0], window->pixels[i][1], window->pixels[i][2], window->pixels[i][3]);
-        for (size_t c = 0; c < 4; c++) {
+        for (size_t c = 0; c < NUM_CHANNELS; c++) {
             if (window->pixels[i][c] < min[c]) {
                 min[c] = window->pixels[i][c];
             }
@@ -58,7 +58,7 @@ compress_result_t compress(pixel_window_t* window) {
 
     uint8_t diff[4];
     uint8_t l[4];
-    for (size_t c = 0; c < 4; c++) {
+    for (size_t c = 0; c < NUM_CHANNELS; c++) {
         diff[c] = max[c] - min[c];
 
         //l[c] = ceil(log(max[c] - min[c]))
@@ -75,8 +75,8 @@ compress_result_t compress(pixel_window_t* window) {
         }
     }
 
-    printf("Diff: (%d, %d, %d, %d)\n", diff[0], diff[1], diff[2], diff[3]);
-    printf("L: (%d, %d, %d, %d)\n", l[0], l[1], l[2], l[3]);
+    //printf("Diff: (%d, %d, %d, %d)\n", diff[0], diff[1], diff[2], diff[3]);
+    //printf("L: (%d, %d, %d, %d)\n", l[0], l[1], l[2], l[3]);
 
 
 
@@ -89,13 +89,13 @@ compress_result_t compress(pixel_window_t* window) {
         result.did_compression = false;
         result.compress_ratio = 1.0;
     }
-    result.llc_time = get_render_time_ms(result.did_compression);
+    result.llc_time = get_llc_time_ms(result.did_compression);
 
 
     //This is mostly for testing, the most important metric is whether the compression
     //was performed or not.
     //Note that in uncompressed formats these are not actually stored.
-    for (size_t c = 0; c < 4; c++) {
+    for (size_t c = 0; c < NUM_CHANNELS; c++) {
         result.skip[c] =  l[c] == 0 ? (uint8_t) 1 : (uint8_t) 0; 
         result.prediction[c] = min[c];
         result.numBits[c] = l[c]; //Might be edge case with l[c] = 0 when diff is 1.
