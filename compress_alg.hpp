@@ -1,29 +1,24 @@
+#ifndef COMPRESS_ALG_HPP
+#define COMPRESS_ALG_HPP
+
 #include <inttypes.h>
 #include <stddef.h>
 
-#define FRAME_SIZE 1024
-#define FRAME_ROW_SIZE 32
-#define FRAME_NUM_ROWS ((FRAME_SIZE) / (FRAME_ROW_SIZE))
-
-
-#define WINDOW_SIZE 32
+#define WINDOW_SIZE_COMPRESSED 64
+#define WINDOW_NUM_PIXELS 32
 #define WINDOW_ROW_SIZE 8
-#define WINDOW_NUM_ROWS ((WINDOW_SIZE) / (WINDOW_ROW_SIZE))
+#define WINDOW_NUM_ROWS ((WINDOW_NUM_PIXELS) / (WINDOW_ROW_SIZE))
 
 #define NUM_CHANNELS 4
 
 typedef struct {
-    uint8_t pixels[WINDOW_SIZE][NUM_CHANNELS];
-} pixel_window_t;
-
-typedef struct {
-    uint8_t pixels[FRAME_SIZE][NUM_CHANNELS];
-} frame_t;
+    uint8_t pixels[WINDOW_NUM_PIXELS][NUM_CHANNELS];
+} pixel_window_t;   //A window of pixels taking up 2 CLs that can be compressed into 1 CL.
 
 typedef struct {
     bool did_compression;
     double compress_ratio;
-    double llc_time;
+    //double llc_time;
 
     //Compressed Pixels
     //Total Header Bits: (1+8+3) * 4 = 48
@@ -41,3 +36,5 @@ typedef struct {
 } compress_result_t;
 
 extern compress_result_t compress(pixel_window_t* window);
+
+#endif
