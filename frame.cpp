@@ -31,6 +31,18 @@ static void set_pixel(uint8_t* p, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     p[3] = a;
 }
 
+static void set_window_black(pixel_window_t* window) {
+    for (size_t j = 0; j < WINDOW_NUM_PIXELS; j++) {
+        set_pixel(window->pixels[j], 0, 0, 0, 0);
+    }
+}
+
+static void set_window_random(pixel_window_t* window) {
+    for (size_t j = 0; j < WINDOW_NUM_PIXELS; j++) {
+        set_pixel(window->pixels[j], rand() % 256, rand() % 256, rand() % 256, rand() % 256);
+    }
+}
+
 static frame_t* init_frame(size_t nWindows) {
     frame_t* frame = new frame_t();
     frame->nWindows = nWindows;
@@ -51,13 +63,13 @@ static bool get_frame_id(frame_t* searchFrame, uint64_t* id) {
     return false;
 }
 
-void free_frame(frame_t* frame) {
-    uint64_t frame_id;
-    if (get_frame_id(frame, &frame_id)) {
-        m_Frames.erase(m_Frames.begin() + frame_id);
+void free_frames() {
+    for (int i = m_Frames.size()-1; i >= 0; i--) {
+        frame_t* frame = m_Frames[i];
+        m_Frames.erase(m_Frames.begin()+i);
+        delete[] frame->windows;
+        delete frame;
     }
-    delete[] frame->windows;
-    delete frame;
 }
 
 static double read_window(frame_t* frame, uint64_t frame_id, uint64_t window_id, sim_stats_t* cache_stats) {
@@ -102,9 +114,7 @@ frame_t* get_new_frame_black(uint64_t nWindows) {
     frame_t* frame = init_frame(nWindows);
 
     for (uint64_t i = 0; i < nWindows; i++) {
-        for (size_t j = 0; j < WINDOW_NUM_PIXELS; j++) {
-            set_pixel(frame->windows[i].pixels[j], 0, 0, 0, 0);
-        }
+        set_window_black(&frame->windows[i]);
     }
 
     return frame;
@@ -114,8 +124,20 @@ frame_t* get_new_frame_random(uint64_t nWindows) {
     frame_t* frame = init_frame(nWindows);
 
     for (uint64_t i = 0; i < nWindows; i++) {
-        for (size_t j = 0; j < WINDOW_NUM_PIXELS; j++) {
-            set_pixel(frame->windows[i].pixels[j], rand() % 256, rand() % 256, rand() % 256, rand() % 256);
+        set_window_random(&frame->windows[i]);
+    }
+
+    return frame;
+}
+
+frame_t* get_facade_frame(frame_t* ogFrame) {
+    //Solution 1: Generate new frame every time requested.
+    frame_t* frame = init_frame(ogFrame->nWindows);
+    for (uint64_t i = 0; i < frame->nWindows; i++) {
+        if (compress(&ogFrame->windows[i]).did_compression) {
+            set_window_random(&frame->windows[i]);
+        } else {
+            set_window_black(&frame->windows[i]);
         }
     }
 
@@ -130,6 +152,15 @@ double read_frame(frame_t* frame, sim_stats_t* cache_stats) {
     for (uint64_t i = 0; i < frame->nWindows; i++) {
         totalTime += read_window(frame, frame_id, i, cache_stats);
     }
+
+    return totalTime;
+}
+
+double read_frame_facade(frame_t* frame, sim_stats_t* cache_stats) {
+    frame_t* facade = get_facade_frame(frame);
+    double totalTime = 0.0;
+    totalTime += read_frame(facade, cache_stats);
+    totalTime += read_frame(frame, cache_stats);
 
     return totalTime;
 }

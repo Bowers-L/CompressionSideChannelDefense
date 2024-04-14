@@ -11,6 +11,11 @@
 // #define FRAME_NUM_ROWS ((FRAME_SIZE) / (FRAME_ROW_SIZE))
 // #define FRAME_NUM_WINDOWS ((FRAME_SIZE) / 16)   //16 pixels per cacheline
 
+typedef enum window_type {
+    WINDOW_TYPE_BLACK,
+    WINDOW_TYPE_RANDOM
+} window_type_t;
+
 //A frame is a texture that is designed to occupy the whole LLC.
 typedef struct {
     uint64_t nWindows;
@@ -21,10 +26,11 @@ extern std::vector<frame_t*> m_Frames;
 
 extern void print_frame_nWindows();
 extern double read_frame(frame_t* frame, sim_stats_t* cache_stats);
+extern double read_frame_facade(frame_t* frame, sim_stats_t* cache_stats);
 extern double read_frame_backwards(frame_t* frame, sim_stats_t* cache_stats);
 extern frame_t* get_new_frame_checkerboard(uint64_t nWindows);
 extern frame_t* get_new_frame_black(uint64_t nWindows);
 extern frame_t* get_new_frame_random(uint64_t nWindows);
-extern void free_frame(frame_t* frame);
+extern void free_frames();
 
 #endif

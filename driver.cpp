@@ -66,18 +66,18 @@ static std::string channel_to_str[] = {
 // }
 
 static void print_cache_stats(sim_stats_t* stats) {
-    // printf("Cache Statistics\n");
-    // printf("----------------\n");
-    // printf("Reads: %" PRIu64 "\n", stats->reads);
-    // printf("Writes: %" PRIu64 "\n", stats->writes);
-    // printf("\n");
-    // printf("L1 accesses: %" PRIu64 "\n", stats->accesses_l1);
-    // printf("L1 hits: %" PRIu64 "\n", stats->hits_l1);
-    // printf("L1 misses: %" PRIu64 "\n", stats->misses_l1);
-    // printf("L1 hit ratio: %.3f\n", stats->hit_ratio_l1);
-    // printf("L1 miss ratio: %.3f\n", stats->miss_ratio_l1);
-    // printf("L1 average access time (AAT): %.3f\n", stats->avg_access_time_l1);
-    // printf("\n");
+    printf("Cache Statistics\n");
+    printf("----------------\n");
+    printf("Reads: %" PRIu64 "\n", stats->reads);
+    printf("Writes: %" PRIu64 "\n", stats->writes);
+    printf("\n");
+    printf("L1 accesses: %" PRIu64 "\n", stats->accesses_l1);
+    printf("L1 hits: %" PRIu64 "\n", stats->hits_l1);
+    printf("L1 misses: %" PRIu64 "\n", stats->misses_l1);
+    printf("L1 hit ratio: %.3f\n", stats->hit_ratio_l1);
+    printf("L1 miss ratio: %.3f\n", stats->miss_ratio_l1);
+    printf("L1 average access time (AAT): %.3f\n", stats->avg_access_time_l1);
+    printf("\n");
     printf("Number of Evictions: %" PRIu64 "\n", stats->num_evictions);
     printf("LLC Walk Time: %.3f\n", stats->llc_walk_time);
     // printf("\n");
@@ -118,7 +118,7 @@ static void init_stats(sim_stats_t* stats) {
     stats->llc_walk_time = 0;
 }
 
-void measure_llc_walk(size_t num_windows, llc_walk_stats_combined_t* stats) {
+void measure_llc_walk(size_t num_windows, llc_walk_stats_combined_t* stats, bool use_facade = false) {
     sim_stats_t cache_stats_black;
     init_stats(&cache_stats_black);
     sim_stats_t cache_stats_noise;
@@ -133,20 +133,31 @@ void measure_llc_walk(size_t num_windows, llc_walk_stats_combined_t* stats) {
 
     sim_setup(&cache_config);
     read_frame(buffer_frame, &cache_stats_black);    //Dummy frame to fill entire LLC
-    read_frame(frame_black, &cache_stats_black);
+    if (use_facade) {
+        read_frame_facade(frame_black, &cache_stats_black);
+    } else {
+        read_frame(frame_black, &cache_stats_black);
+    }
     cache_stats_black.llc_walk_time = read_frame_backwards(buffer_frame, &cache_stats_black);
     sim_finish(&cache_stats_black);
+
+    // print_cache_stats(&cache_stats_black);
 
     stats->compressed.num_evictions = cache_stats_black.num_evictions;
     stats->compressed.walk_time = cache_stats_black.llc_walk_time;
 
     //RUN UNCOMPRESSED LAYERS
-
     sim_setup(&cache_config);
     read_frame(buffer_frame, &cache_stats_noise);    //Dummy frame to fill entire LLC
-    read_frame(frame_noise, &cache_stats_noise);
+    if (use_facade) {
+        read_frame_facade(frame_noise, &cache_stats_black);
+    } else {
+        read_frame(frame_noise, &cache_stats_black);
+    }
     cache_stats_noise.llc_walk_time = read_frame_backwards(buffer_frame, &cache_stats_noise);
     sim_finish(&cache_stats_noise);
+
+    // print_cache_stats(&cache_stats_noise);
 
     stats->uncompressed.num_evictions = cache_stats_noise.num_evictions;
     stats->uncompressed.walk_time = cache_stats_noise.llc_walk_time;
@@ -160,9 +171,7 @@ void measure_llc_walk(size_t num_windows, llc_walk_stats_combined_t* stats) {
     // print_cache_stats(&cache_stats_noise);
     // printf("\n");
 
-    free_frame(buffer_frame);
-    free_frame(frame_black);
-    free_frame(frame_noise);
+    free_frames();
 }
 
 void print_stats_csv(llc_walk_stats_combined_t* stats, uint64_t num_stats) {
@@ -170,8 +179,8 @@ void print_stats_csv(llc_walk_stats_combined_t* stats, uint64_t num_stats) {
     for (uint64_t i = 0; i < num_stats; i++) {
         printf("%" PRIu64 "\t%.2f\t%.2f\n", 
             stats[i].texture_size,
-            stats[i].uncompressed.walk_time, 
-            stats[i].compressed.walk_time);
+            stats[i].uncompressed.walk_time / 1000, 
+            stats[i].compressed.walk_time / 1000);
     }
 }
 
@@ -191,7 +200,7 @@ int main() {
             nKB = upBoundKB;
         }
         stats[i].texture_size = nKB;
-        measure_llc_walk(8*nKB, &stats[i]);
+        measure_llc_walk(8*nKB, &stats[i], true);
     }
 
     print_stats_csv(stats, num_iter);
