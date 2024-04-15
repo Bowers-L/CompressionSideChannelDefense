@@ -7,13 +7,13 @@
 #include "cache_sim.hpp"
 #include "frame.hpp"
 
-#define TIMING_THRESHOLD_BASELINE 17
+#define TIMING_THRESHOLD_BASELINE 62
 #define TIMING_THRESHOLD_FACADE 34
 #define NUM_LAYERS 10
 
 #define C 16
 #define B 6
-#define S 0    //C-B for full associativity
+#define S 10    //C-B for full associativity
 
 // typedef struct {
 //     double accuracy;
@@ -184,10 +184,56 @@ void print_stats_csv(llc_walk_stats_combined_t* stats, uint64_t num_stats) {
     }
 }
 
-int main() {
-    init_cache_config();
-    srand(time(NULL));
+double do_pixel_attack(bool use_facade) {
+    //1024x1024 pixel frame
+    frame_t* victim_frame = get_new_frame_checkerboard(32);
 
+    uint64_t correct_pixels = 0;
+    uint64_t total_pixels = 0;
+
+    frame_t* buffer_frame = get_new_frame_random(FRAME_NUM_WINDOWS_CACHE);
+    frame_t* frame_black = get_new_frame_black(FRAME_NUM_WINDOWS_CACHE);
+    frame_t* frame_noise = get_new_frame_random(FRAME_NUM_WINDOWS_CACHE);
+
+    for (size_t w = 0; w < 32; w++) {
+        for (size_t p = 0; p < 32; p++) {
+            sim_stats_t cache_stats;
+            init_stats(&cache_stats);
+
+            sim_setup(&cache_config);
+            read_frame(buffer_frame, &cache_stats);    //Dummy frame to fill entire LLC
+
+            //get which frame to use
+            frame_t* attacker_frame;
+            bool actual_white = victim_frame->windows[w].pixels[p][0] > 127;
+            if (actual_white) {
+                attacker_frame = frame_noise;
+            } else {
+                attacker_frame = frame_black;
+            }
+
+            if (use_facade) {
+                read_frame_facade(attacker_frame, &cache_stats);
+            } else {
+                read_frame(attacker_frame, &cache_stats);
+            }
+            cache_stats.llc_walk_time = read_frame_backwards(buffer_frame, &cache_stats);
+            sim_finish(&cache_stats);
+
+            //Guess the Pixel
+            bool guess_white = cache_stats.llc_walk_time / 1000 > TIMING_THRESHOLD_BASELINE;
+            if (guess_white == actual_white) {
+                correct_pixels++;
+            } 
+
+            total_pixels++;
+        }
+    }
+
+    return (double) correct_pixels / 1024;
+}
+
+void generate_llc_times() {
     uint64_t lowBoundKB = 1;
     uint64_t upBoundKB = 128;
     uint64_t strideKB = 1;
@@ -206,48 +252,12 @@ int main() {
     print_stats_csv(stats, num_iter);
 
     delete[] stats;
-    
-    //Populate pixels
-    // frame_t frame = get_new_frame();
+}
 
-    // uint64_t correct_pixels_base = 0;
-    // uint64_t correct_pixels_facade = 0;
-    // for (size_t i = 0; i < FRAME_SIZE; i++) {
-    //     frame_t attack_frame = get_attacker_frame(frame.pixels[i]);
-    //     double render_time_base = render_baseline(&attack_frame);
-    //     double render_time_facade = render_facade(&attack_frame);
+int main() {
+    init_cache_config();
+    srand(time(NULL));
 
-    //     bool correct_baseline = correct_guess(render_time_base > TIMING_THRESHOLD_BASELINE, frame.pixels[i]);
-    //     correct_pixels_base += correct_baseline ? 1 : 0;
-    //     bool correct_facade = correct_guess(render_time_facade > TIMING_THRESHOLD_FACADE, frame.pixels[i]);
-    //     correct_pixels_facade += correct_facade ? 1 : 0;
-
-    //     stats_baseline.avg_render_time = (stats_baseline.avg_render_time * i + render_time_base) / (i+1);
-    //     stats_facade.avg_render_time = (stats_facade.avg_render_time * i + render_time_facade) / (i+1);
-    // }
-
-    // stats_baseline.accuracy = (double) (correct_pixels_base) / FRAME_SIZE;
-    // stats_facade.accuracy = (double) (correct_pixels_facade) / FRAME_SIZE;
-
-    //TEARDOWN
-
-    // printf("BASELINE STATS\n");
-    // print_stats(&stats_baseline);
-
-    // printf("FACADE STATS\n");
-    // print_stats(&stats_facade);
-
-
-    // for (size_t i = 0; i < 32; i++) {
-    //     for (size_t c = 0; c < 4; c++) {
-    //         black.pixels[i][c] = 0;
-    //         random.pixels[i][c] = rand() % 256;
-    //     }
-    // }
-
-    // compress_result_t black_result = compress(&black);
-    // compress_result_t random_result = compress(&random);
-
-    // print_compress_result("BLACK", &black_result);
-    // print_compress_result("RANDOM", &random_result);
+    double accuracy = do_pixel_attack(false);
+    printf("%.2f\n", accuracy);
 }
