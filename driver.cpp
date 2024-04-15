@@ -13,7 +13,7 @@
 
 #define C 16
 #define B 6
-#define S 10    //C-B for full associativity
+#define S 0    //C-B for full associativity
 
 // typedef struct {
 //     double accuracy;
